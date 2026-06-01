@@ -1,16 +1,11 @@
-# 自定义定时任务
+# Custom cron scheduling
 
-默认情况不需要看这个文件。
+The installer automatically chooses a scheduler: systemd when available, otherwise a cron supervisor on Linux/BSD.
+Use this document only when you do not want the one-click installer to manage scheduling.
 
-安装脚本会自动选调度器：有 systemd 就用 systemd；没有就用 cron 监督器（Linux/BSD）。
+## Basic setup
 
-只有你不想让一键安装器管定时，才需要手动按这里的命令做。
-
-英文版见 [README_CRON_EN.md](README_CRON_EN.md)。
-
-## 基本准备
-
-下载并安装运行脚本：
+Download and install runtime scripts:
 
 ```sh
 curl -fsSL https://gitlab.com/spiritysdx/Oracle-server-keep-alive-script/-/raw/main/cpu-limit.sh -o /usr/local/bin/cpu-limit.sh
@@ -21,7 +16,7 @@ chmod +x /usr/local/bin/cpu-limit.sh /usr/local/bin/memory-limit.sh /usr/local/b
 mkdir -p /etc/oalive /var/log/oalive /var/lib/oalive
 ```
 
-最小配置示例：
+Minimal config example:
 
 ```sh
 cat >/etc/oalive/oalive.conf <<'EOF'
@@ -49,7 +44,7 @@ BANDWIDTH_SCRIPT=/usr/local/bin/bandwidth_occupier.sh
 EOF
 ```
 
-选择要启用的任务：
+Enable tasks:
 
 ```sh
 cat >/etc/oalive/enabled.conf <<'EOF'
@@ -59,53 +54,51 @@ BANDWIDTH_ENABLED=1
 EOF
 ```
 
-## cron 监督器
+## Cron supervisor
 
-推荐只加一条 cron。
-
-它每分钟轻量检查一次：CPU/内存任务不在就拉起；带宽任务按 `BANDWIDTH_INTERVAL_MINUTES` 精确到分钟触发，并由锁避免重入。
+Recommended single cron entry. It runs a lightweight check every minute: starts CPU/memory task when missing; triggers bandwidth task on minute-accurate `BANDWIDTH_INTERVAL_MINUTES`, with lock-based reentry prevention.
 
 ```cron
 * * * * * /usr/local/bin/oalive-cron-runner.sh >/dev/null 2>&1
 ```
 
-安装到当前 root crontab：
+Install to current root crontab:
 
 ```sh
 (crontab -l 2>/dev/null; printf '%s\n' '* * * * * /usr/local/bin/oalive-cron-runner.sh >/dev/null 2>&1') | crontab -
 ```
 
-## 手动运行
+## Manual run
 
-CPU 长驻任务：
+CPU daemon task:
 
 ```sh
 sh /usr/local/bin/cpu-limit.sh
 ```
 
-内存长驻任务：
+Memory daemon task:
 
 ```sh
 sh /usr/local/bin/memory-limit.sh
 ```
 
-带宽单次任务：
+Bandwidth one-shot task:
 
 ```sh
 sh /usr/local/bin/bandwidth_occupier.sh
 ```
 
-所有任务都有原子锁。重复运行时，新的实例会发现旧实例并安全退出。
+All tasks use atomic locks. If started twice, the new instance detects the existing one and exits safely.
 
-## 停止任务
+## Stop tasks
 
-优先使用一键卸载：
+Preferred method:
 
 ```sh
 sh oalive.sh --uninstall
 ```
 
-如果你是完全手动部署，可以按锁文件中的 PID 停止：
+For fully manual deployment, stop by lock PID:
 
 ```sh
 for name in cpu-limit memory-limit bandwidth; do
@@ -114,4 +107,4 @@ for name in cpu-limit memory-limit bandwidth; do
 done
 ```
 
-不要使用 `kill $(ps ... | grep ...)` 这类模糊匹配命令，容易误杀无关进程。
+Do not use broad `ps | grep | kill` commands; they can kill unrelated processes.

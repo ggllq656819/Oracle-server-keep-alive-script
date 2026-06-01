@@ -1,11 +1,15 @@
 [Unit]
-Description=Keep memory usage
+Description=Oracle keep-alive memory occupier
+After=network-online.target
 
 [Service]
+Type=simple
 User=root
-#ExecStartPre=-/bin/bash -c 'kill $(ps -efA | grep memory-limit.sh | awk "{print $2}")'
-ExecStart=/bin/bash /usr/local/bin/memory-limit.sh
-#Restart=on-failure
+EnvironmentFile=-/etc/oalive/oalive.conf
+ExecStart=/bin/sh /usr/local/bin/memory-limit.sh
+Restart=always
+RestartSec=30s
+KillMode=control-group
 
 [Install]
 WantedBy=multi-user.target
